@@ -3,9 +3,19 @@ import { convertFileSizeBytes } from './useful.js';
 import { parseVTF, VTF } from './vtf.js';
 
 
+const vtf = new VTF();
 
+
+/** @type {HTMLInputElement} */
+const fileInput = document.querySelector('#file-input');
+/** @type {HTMLAnchorElement} */
+const fileOutput = document.querySelector('#file-output');
+/** @type {HTMLSelectElement} */
 const editorResolution = document.querySelector('#editor-resolution > select');
+/** @type {HTMLInputElement} */
 const editorGenerateMips = document.querySelector('#editor-generatemips > input');
+
+
 
 let file = null;
 async function generate() {
@@ -28,21 +38,10 @@ async function generate() {
 }
 
 
-
-/** @type {HTMLInputElement} */
-const fileInput = document.querySelector('#file-input');
-/** @type {HTMLAnchorElement} */
-const fileOutput = document.querySelector('#file-output');
-
-
-
-const vtf = new VTF();
-
 fileInput.addEventListener('input', async () => {
     file = fileInput.files[0];
     generate();
 });
-
 
 editorResolution.addEventListener('change', () => {
     generate();
