@@ -1,1 +1,3 @@
-Get mipmaps to work (Currently very buggy)
+
+Make it work with TF2
+Different formats
