@@ -7,6 +7,8 @@ import { parseVTF, VTF } from './vtf.js';
 
 /** @type {HTMLInputElement} */
 const fileInput = document.querySelector('#file-input');
+/** @type {HTMLAnchorElement} */
+const fileOutput = document.querySelector('#file-output');
 
 
 
@@ -17,12 +19,12 @@ fileInput.addEventListener('input', async e => {
 
     const vtfFile = parseVTF(vtf);
 
-    console.log('VTF File Size', convertFileSizeBytes(vtfFile.length));
+    fileOutput.innerText = `Download VTF - ${convertFileSizeBytes(vtfFile.length)}`;
 
     // Download
     const blob = new Blob([vtfFile], {
         type: 'application/octet-stream'
     });
     const url = URL.createObjectURL(blob);
-    document.querySelector('#file-output').setAttribute('href', url);
+    fileOutput.setAttribute('href', url);
 });
