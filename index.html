@@ -23,11 +23,32 @@
         </div>
 
         <div id="editor">
-
+            EDITOR
+            <br />
+            <br />
+            <div id="editor-resolution">
+                Resolution: 
+                <select>
+                    <option value="32">32x32</option>
+                    <option value="64">64x64</option>
+                    <option value="128">128x128</option>
+                    <option value="256">256x256</option>
+                    <option value="512" selected>512x512</option>
+                    <option value="1024">1024x1024</option>
+                </select>
+            </div>
+            <div id="editor-generatemips">
+                Generate Mipmaps: 
+                <input type="checkbox" checked>
+            </div>
         </div>
 
         <div id="file-output-container">
             <a id="file-output" download="converted.vtf"></a>
+        </div>
+
+        <div id="info">
+            Sprays wont display ingame if they're above 512kB
         </div>
 
     </div>

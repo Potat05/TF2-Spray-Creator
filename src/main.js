@@ -4,18 +4,16 @@ import { parseVTF, VTF } from './vtf.js';
 
 
 
+const editorResolution = document.querySelector('#editor-resolution > select');
+const editorGenerateMips = document.querySelector('#editor-generatemips > input');
 
-/** @type {HTMLInputElement} */
-const fileInput = document.querySelector('#file-input');
-/** @type {HTMLAnchorElement} */
-const fileOutput = document.querySelector('#file-output');
+let file = null;
+async function generate() {
+    if(!file) return;
 
+    vtf.size = parseInt(editorResolution.value);
 
-
-const vtf = new VTF();
-
-fileInput.addEventListener('input', async e => {
-    await vtf.setImage(fileInput.files[0], true);
+    await vtf.setImage(fileInput.files[0], editorGenerateMips.checked);
 
     const vtfFile = parseVTF(vtf);
 
@@ -27,4 +25,30 @@ fileInput.addEventListener('input', async e => {
     });
     const url = URL.createObjectURL(blob);
     fileOutput.setAttribute('href', url);
+}
+
+
+
+/** @type {HTMLInputElement} */
+const fileInput = document.querySelector('#file-input');
+/** @type {HTMLAnchorElement} */
+const fileOutput = document.querySelector('#file-output');
+
+
+
+const vtf = new VTF();
+
+fileInput.addEventListener('input', async () => {
+    file = fileInput.files[0];
+    generate();
 });
+
+
+editorResolution.addEventListener('change', () => {
+    generate();
+});
+
+editorGenerateMips.addEventListener('change', () => {
+    generate();
+});
+
