@@ -5,7 +5,7 @@ import { Writer } from './writer.js';
 export class VTF {
     
     /** @type {Number} */
-    size = 1024;
+    size = 256;
 
     /** @type {ImageData[]} Each mipmap is 1/4th of parent down to 32x32 */
     mipmaps = [];
@@ -13,7 +13,7 @@ export class VTF {
     lowres = null;
 
     clear() {
-        this.size = 1024;
+        this.size = 256;
         this.mipmaps = [];
         this.lowres = null;
     }
@@ -125,7 +125,10 @@ export function parseVTF(vtf, options={}) {
     wr.write_int(64); // Header size (Always 80 for TF2)
     wr.write_short(vtf.size); // Width
     wr.write_short(vtf.size); // Height
-    wr.write_int(TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD | TEXTURE_FLAGS.EIGHTBITALPHA); // Flags
+    // Flags
+    if(vtf.mipmaps.length > 1) wr.write_int(TEXTURE_FLAGS.EIGHTBITALPHA);
+    else wr.write_int(TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD | TEXTURE_FLAGS.EIGHTBITALPHA);
+
     wr.write_short(1); // Num frames
     wr.write_short(0); // First frame
     wr.write_bytes([0,0,0,0, 0,0,128,63, 0,0,128,63, 0,0,128,63, 0,0,0,0]); // Reflectivity
@@ -134,24 +137,14 @@ export function parseVTF(vtf, options={}) {
     wr.write_byte(vtf.mipmaps.length); // Mipmap count
 
     // Skip low res image
-    wr.write_bytes([255, 255, 255, 255]);
+    wr.write_int(0xFFFFFFFF);
     wr.write_byte(0);
     wr.write_byte(0);
-
-    // I have no clue what this byte does.
     wr.write_byte(1);
-
-    // // Low res image
-    // wr.write_int(0);
-    // // wr.write_int(13); // Low res image format (Always DXT1)
-    // wr.write_byte(0); // Low res image width
-    // wr.write_byte(0); // Low res image height
 
 
     // Write all bitmaps
-    for(let img of vtf.mipmaps) {
-        wr.write_bytes(img.data);
-    }
+    vtf.mipmaps.reverse().forEach(img => wr.write_bytes(img.data));
 
     // Return data
     return wr.get();
