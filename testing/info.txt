@@ -1,0 +1,5 @@
+For comparing VTFs
+
+Spray creator
+vs
+VTFEdit
