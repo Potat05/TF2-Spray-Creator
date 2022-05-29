@@ -2,7 +2,7 @@
 
 
 /**
- * 
+ * Await image load
  * @param {String} src 
  * @returns 
  */
@@ -17,7 +17,7 @@ export function awaitLoadImage(src) {
 
 
 /**
- * Await an image loading.
+ * Get an images data
  * @param {Image} file
  */
 export function loadImageData(img, size=1024) {

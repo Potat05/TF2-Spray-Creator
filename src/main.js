@@ -11,7 +11,7 @@ let file = null;
 async function generate() {
     if(!file) return;
 
-    vtf.size = parseInt(editorResolution.value);
+    vtf.size = new Number(editorResolution.value);
 
     await vtf.setImage(fileInput.files[0], editorGenerateMips.checked);
 
