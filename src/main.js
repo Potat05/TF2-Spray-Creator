@@ -9,6 +9,8 @@ const fileInput = document.querySelector('#file-input');
 /** @type {HTMLAnchorElement} */
 const fileOutput = document.querySelector('#file-output');
 /** @type {HTMLInputElement} */
+const editorImagesmoothing = document.querySelector('#editor-imagesmoothing > input');
+/** @type {HTMLInputElement} */
 const editorCRC = document.querySelector('#editor-crc > input');
 /** @type {HTMLSelectElement} */
 const editorResolution = document.querySelector('#editor-resolution > select');
@@ -40,7 +42,7 @@ async function generate() {
         imageFormat: parseInt(editorFormat.value),
         autoMips: editorGenerateMips.checked,
         crc: editorCRC.checked,
-        downscaleAlias: false
+        downscaleAlias: editorImagesmoothing.checked
     });
     
     console.timeEnd('generate');
@@ -58,7 +60,7 @@ async function generate() {
 }
 
 
-[fileInput, editorCRC, editorResolution, editorGenerateMips, editorFormat].forEach(elem => {
+[fileInput, editorCRC, editorResolution, editorGenerateMips, editorFormat, editorImagesmoothing].forEach(elem => {
     elem.addEventListener('change', generate);
 });
 
