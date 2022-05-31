@@ -19,27 +19,47 @@
     <div id="app">
 
         <div id="file-input-container">
-            <input id="file-input" type="file">
+            <input id="file-input" type="file" multiple>
         </div>
 
         <div id="editor">
             EDITOR
             <br />
             <br />
+            <div id="editor-crc">
+                Cyclic Redundancy Check: 
+                <input type="checkbox" checked>
+            </div>
             <div id="editor-resolution">
                 Resolution: 
                 <select>
+                    <option value="4">4x4</option>
+                    <option value="8">8x8</option>
+                    <option value="16">16x16</option>
                     <option value="32">32x32</option>
-                    <option value="64">64x64</option>
+                    <option value="64" selected>64x64</option>
                     <option value="128">128x128</option>
                     <option value="256">256x256</option>
-                    <option value="512" selected>512x512</option>
+                    <option value="512">512x512</option>
                     <option value="1024">1024x1024</option>
                 </select>
             </div>
             <div id="editor-generatemips">
                 Generate Mipmaps: 
                 <input type="checkbox" checked>
+            </div>
+            <div id="editor-format">
+                Format: 
+                <select>
+                    <option value="0">RGBA8888 (Full color, full transparency)</option>
+                    <option value="2">RGB888 (Full color, no transparency)</option>
+                    <option value="4">RGB565 (Reduced color, no transparency)</option>
+                    <option value="5">I8 (Grayscale, no transparency)</option>
+                    <option value="6">IA88 (Grayscale, full transparency)</option>
+                    <option value="13" selected>DXT1 (Compressed, no transparency)</option>
+                    <option value="19">BGRA44444 (Reduced color, unsmooth transparency)</option>
+                    <option value="21">BGRA5551 (Reduced color, on/off transparency)</option>
+                </select>
             </div>
         </div>
 

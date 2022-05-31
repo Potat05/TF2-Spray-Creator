@@ -1,93 +1,19 @@
 
-import { awaitLoadImage, loadImageData } from './useful.js';
+/*
+
+    Valve Texture File generator
+
+    HUGE HELP ON MAKING THIS: https://developer.valvesoftware.com/wiki/Valve_Texture_Format
+
+*/
+
+import { loadImageData } from './useful.js';
 import { Writer } from './writer.js';
-
-export class VTF {
-    
-    /** @type {Number} */
-    size = 256;
-
-    /** @type {ImageData[][]} Each mipmap is 1/4th of parent down to 32x32 */
-    mipmaps = [];
-
-    mipmap_count = 0;
-    frame_count = 0;
-
-    clear() {
-        this.size = 256;
-        this.mipmaps = [];
-        this.mipmap_count = 0;
-        this.frame_count = 0;
-    }
-
-    /**
-     * 
-     * @param {File} file 
-     * @param {Boolean} mips 
-     */
-    async setImage(file, mips=true) {
-        this.clear();
-
-        if(file.type == 'image/gif') {
-            console.warn('Gifs currently not supported!');
-        } else {
-            const img = await awaitLoadImage(file);
-
-            this.mipmap_count = 1;
-            this.frame_count = 1;
-            this.mipmaps.push([loadImageData(img, this.size)]);
-    
-            if(mips) {
-                let size = this.size;
-                while(size > 32) {
-                    size /= 2;
-                    this.mipmap_count++;
-                    this.mipmaps.push([loadImageData(img, size)]);
-                }
-            }
-        }
-        
-    }
-
-}
-
-
-
+import { ImageData_To_RGBA8888, ImageData_To_RGB888, ImageData_To_RGB565, ImageData_To_I8, ImageData_To_IA88, ImageData_To_BGRA4444, ImageData_To_BGRA5551 } from './basicformats.js';
+import { ImageData_To_DXT1 } from './dxt1.js';
 
 const SIGNATURE = 0x00465456;
 const VERSION = [7, 4]; // Max version TF2 can support
-const HEADER_SIZE = 80;
-
-const IMAGE_FORMAT_NONE = -1;
-const IMAGE_FORMAT = [
-    'RGBA8888',
-    'ABGR8888',
-    'RGB888',
-    'BGR888',
-    'RGB565',
-    'I8',
-    'IA88',
-    'P8',
-    'A8',
-    'RGB888_BLUESCREEN',
-    'BGR888_BLUESCREEN',
-    'ARGB8888',
-    'BGRA8888',
-    'DXT1',
-    'DXT3',
-    'DXT5',
-    'BGRX8888',
-    'BGR565',
-    'BGRX5551',
-    'BGRA4444',
-    'DTX1_ONEBITALPHA',
-    'BGRA5551',
-    'UV88',
-    'UVWQ8888',
-    'RGBA16161616F',
-    'RGBA16161616',
-    'UVLX8888'
-]
 
 // Texture flags by bit index
 const TEXTURE_FLAGS = {
@@ -123,7 +49,38 @@ const TEXTURE_FLAGS = {
     BORDER: 0x20000000,
     UNUSED_40000000: 0x40000000,
     UNUSED_80000000: 0x80000000,
-};
+}
+
+export const IMAGE_FORMAT = {
+    'NONE': { id: -1 },
+    'RGBA8888': { id: 0, converter: ImageData_To_RGBA8888, flags: TEXTURE_FLAGS.EIGHTBITALPHA },
+    'ABGR8888': { id: 1 },
+    'RGB888': { id: 2, converter: ImageData_To_RGB888, flags: 0 },
+    'BGR888': { id: 3 },
+    'RGB565': { id: 4, converter: ImageData_To_RGB565, flags: 0 },
+    'I8': { id: 5, converter: ImageData_To_I8, flags: 0 },
+    'IA88': { id: 6, converter: ImageData_To_IA88, flags: TEXTURE_FLAGS.EIGHTBITALPHA },
+    'P8': { id: 7 },
+    'A8': { id: 8 },
+    'RGB888_BLUESCREEN': { id: 9 },
+    'BGR888_BLUESCREEN': { id: 10 },
+    'ARGB8888': { id: 11 },
+    'BGRA8888': { id: 12 },
+    'DXT1': { id: 13, converter: ImageData_To_DXT1, flags: TEXTURE_FLAGS.dxt },
+    'DXT3': { id: 14 },
+    'DXT5': { id: 15 },
+    'BGRX8888': { id: 16 },
+    'BGR565': { id: 17 },
+    'BGRX5551': { id: 18 },
+    'BGRA4444': { id: 19, converter: ImageData_To_BGRA4444, flags: 0 },
+    'DTX1_ONEBITALPHA': { id: 20 },
+    'BGRA5551': { id: 21, converter: ImageData_To_BGRA5551, flags: TEXTURE_FLAGS.ONEBITALPHA },
+    'UV88': { id: 22 },
+    'UVWQ8888': { id: 23 },
+    'RGBA16161616F': { id: 24 },
+    'RGBA16161616': { id: 25 },
+    'UVLX8888': { id: 26 }
+}
 
 const RESOURCE_TAGS = {
     'LOWRES': [ 0x01, 0x00, 0x00 ],
@@ -135,15 +92,71 @@ const RESOURCE_TAGS = {
     'CUSTOM': [ 0x4B, 0x56, 0x44 ],
 }
 
-
-
 /**
- * Parse VTF object to file
- * @param {VTF} vtf 
- * @param {Object} options 
- * @returns {Uint8Array}
+ * Parse image(s) to a VTF file
+ * 
+ * There must be the same amount of frames for every mipmap!
+ * First mipmap MUST have an image
+ * If later mipmaps don't it will use the last image
+ * @param {Image|Null[][]} images - Table of images ([mipmap][frames])
+ * @param {{width: number, height: number, imageFormat: number|{ id: number, converter: function, flags: number }, autoMips: boolean, autoMipsMin: number, crc: boolean, downscaleAlias: boolean}}
+ * @returns {Uint8Array} - VTF file
  */
-export function parseVTF(vtf) {
+export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_FORMAT.RGBA8888, autoMips=true, autoMipsMin=16, crc=true, downscaleAlias=true } = {}) {
+
+    // Alot of random checks.
+
+    // Check if no images
+    if(images.length == 0) {
+        console.error(`Error while parsing VTF\nNo images provided!`);
+        return null;
+    }
+
+    // Check if no images in first
+    for(let i in images[0]) {
+        if(!images[0][i]) {
+            console.error(`Error while parsing VTF\nFirst images cannot be undefined!`);
+            return null;
+        }
+    }
+
+    // Add frame array
+    for(let i in images) {
+        if(images[i] instanceof Image) images[i] = [images[i]];
+    }
+
+    // Get mipmap & frame count
+    let mipmapCount = images.length;
+    if(autoMips) {
+        // Increase mipmap count till it hits the min size
+        mipmapCount = 1;
+        while((width/2**mipmapCount > autoMipsMin) && (width/2**mipmapCount > autoMipsMin)) mipmapCount++;
+    }
+    const frameCount = images[0].length;
+
+    // Check if each mipmap has same number of frames
+    if(images.every(mip => mip.length != frameCount)) {
+        console.error(`Error while parsing VTF\nFrame count for every mipmap isn't the same!`);
+        return null;
+    }
+
+    // Set image format
+    if(typeof imageFormat == 'number') {
+        for(let i in IMAGE_FORMAT) {
+            if(IMAGE_FORMAT[i].id != imageFormat) continue;
+            imageFormat = IMAGE_FORMAT[i];
+        }
+    }
+
+    // Image format has no converter
+    if(!imageFormat.converter) {
+        console.error(`Error while parsing VTF\nImage format ${imageFormat.id} doesn't have a converter!`);
+        return null;
+    }
+
+
+
+    // Actual parsing
 
     const wr = new Writer();
 
@@ -166,20 +179,18 @@ export function parseVTF(vtf) {
     wr.write_int(VERSION[0]); wr.write_int(VERSION[1]); // Version
     const header_size_index = wr.pointer;
     wr.write_int(0); // Header size (Always 80 for TF2)
-    wr.write_short(vtf.size); // Width
-    wr.write_short(vtf.size); // Height
+    wr.write_short(width); // Width
+    wr.write_short(height); // Height
     // Flags
-    if(vtf.mipmaps.length > 1) wr.write_int(TEXTURE_FLAGS.EIGHTBITALPHA);
-    else wr.write_int(TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD | TEXTURE_FLAGS.EIGHTBITALPHA);
-
-    wr.write_short(vtf.frame_count); // Num frames
+    wr.write_int(imageFormat.flags | (mipmapCount == 1 ? TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD : 0));
+    wr.write_short(frameCount); // Num frames
     wr.write_short(0); // First frame
     wr.write_bytes([0, 0, 0, 0]); // Padding
     wr.write_bytes([0,0,128,63, 0,0,128,63, 0,0,128,63]); // Reflectivity
     wr.write_bytes([0, 0, 0, 0]); // Padding
     wr.write_bytes([0, 0, 128, 63]); // Bumpmap scale
-    wr.write_int(0); // High res image format
-    wr.write_byte(vtf.mipmap_count); // Mipmap count
+    wr.write_int(imageFormat.id); // High res image format
+    wr.write_byte(mipmapCount); // Mipmap count
     wr.write_int(0xFFFFFFFF); // Low res image format
     wr.write_byte(0); // Low res width
     wr.write_byte(0); // Low res height
@@ -191,7 +202,7 @@ export function parseVTF(vtf) {
 
     // Resources dictionairy
     const resource_highres = write_resource(RESOURCE_TAGS.HIGHRES);
-    const resource_crc = write_resource(RESOURCE_TAGS.CRC, 0x02);
+    if(crc) var resource_crc = write_resource(RESOURCE_TAGS.CRC, 0x02);
 
     // Set count resource byte
     wr.set_int(resource_index, resource_count);
@@ -203,14 +214,29 @@ export function parseVTF(vtf) {
 
     // Write all bitmaps
     resource_highres();
-    vtf.mipmaps.reverse().forEach(frames => {
-        frames.forEach(img => {
-            wr.write_bytes(img.data);
-        });
-    });
+    for(let i=mipmapCount-1; i >= 0; i--) {
+        const mipWidth = width / 2**i;
+        const mipHeight = height / 2**i;
+        for(let j=0; j < frameCount; j++) {
+            if(!images[i] || !images[i][j]) {
+                let img = null;
+                for(let k=i; i >= 0; k--) {
+                    if(images[k] && images[k][j]) {
+                        img = images[k][j];
+                        break;
+                    }
+                }
+                const imageData = loadImageData(img, mipWidth, mipHeight, downscaleAlias);
+                wr.write_bytes(imageFormat.converter(imageData));
+            } else {
+                const imageData = loadImageData(images[i][j], mipWidth, mipHeight, downscaleAlias);
+                wr.write_bytes(imageFormat.converter(imageData));
+            }
+        }
+    }
 
     // CRC Resource
-    resource_crc(wr.crc32(header_end));
+    if(crc) resource_crc(wr.crc32(header_end));
 
     // Return data
     return wr.get();

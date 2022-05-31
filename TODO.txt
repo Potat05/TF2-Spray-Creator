@@ -1,2 +1,15 @@
 
-Different formats
+
+FORMATS
+
+RGBA8888 - Done
+RGB888 - Done
+RGB565 - Done
+BGRA4444 - Done
+BGRA5551 - Done
+DXT1
+DXT1_ONEBITALPHA
+DXT3
+DXT5
+I8 (Grayscale) - Done
+IA88 (Grayscale Alpha) - Done
