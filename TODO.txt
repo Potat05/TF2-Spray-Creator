@@ -13,3 +13,10 @@ DXT3
 DXT5
 I8 (Grayscale) - Done
 IA88 (Grayscale Alpha) - Done
+
+
+
+
+Move VTF file generation to a webworker
+
+

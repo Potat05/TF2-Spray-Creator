@@ -25,8 +25,10 @@ async function generate() {
     let files = fileInput.files;
 
     if(files.length == 0) {
-        files = ['./resource/test.png'];
+        files = ['./resource/colorchart.jpg'];
     }
+
+    fileOutput.innerText = '';
 
     // Wait to load images
     let images = [];

@@ -1,8 +1,8 @@
 
 // This probably isn't the best way to do this. But oh well I can't find any other easy way.
 
-// Allocate a MB
-const DEFAULT_EXTEND_LENGTH = 1e+6;
+// Allocate a 100kB every extend
+const DEFAULT_EXTEND_LENGTH = 1e+5;
 
 // Generate CRC Table
 const CRC_TABLE = new Uint32Array(256);

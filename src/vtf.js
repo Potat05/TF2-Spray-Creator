@@ -53,28 +53,28 @@ const TEXTURE_FLAGS = {
 
 export const IMAGE_FORMAT = {
     'NONE': { id: -1 },
-    'RGBA8888': { id: 0, converter: ImageData_To_RGBA8888, flags: TEXTURE_FLAGS.EIGHTBITALPHA },
+    'RGBA8888': { id: 0, converter: ImageData_To_RGBA8888, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 32 },
     'ABGR8888': { id: 1 },
-    'RGB888': { id: 2, converter: ImageData_To_RGB888, flags: 0 },
+    'RGB888': { id: 2, converter: ImageData_To_RGB888, flags: 0, size: 24 },
     'BGR888': { id: 3 },
-    'RGB565': { id: 4, converter: ImageData_To_RGB565, flags: 0 },
-    'I8': { id: 5, converter: ImageData_To_I8, flags: 0 },
-    'IA88': { id: 6, converter: ImageData_To_IA88, flags: TEXTURE_FLAGS.EIGHTBITALPHA },
+    'RGB565': { id: 4, converter: ImageData_To_RGB565, flags: 0, size: 16 },
+    'I8': { id: 5, converter: ImageData_To_I8, flags: 0, size: 8 },
+    'IA88': { id: 6, converter: ImageData_To_IA88, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 16 },
     'P8': { id: 7 },
     'A8': { id: 8 },
     'RGB888_BLUESCREEN': { id: 9 },
     'BGR888_BLUESCREEN': { id: 10 },
     'ARGB8888': { id: 11 },
     'BGRA8888': { id: 12 },
-    'DXT1': { id: 13, converter: ImageData_To_DXT1, flags: TEXTURE_FLAGS.dxt },
+    'DXT1': { id: 13, converter: ImageData_To_DXT1, flags: TEXTURE_FLAGS.dxt, size: 4 },
     'DXT3': { id: 14 },
     'DXT5': { id: 15 },
     'BGRX8888': { id: 16 },
     'BGR565': { id: 17 },
     'BGRX5551': { id: 18 },
-    'BGRA4444': { id: 19, converter: ImageData_To_BGRA4444, flags: 0 },
+    'BGRA4444': { id: 19, converter: ImageData_To_BGRA4444, flags: 0, size: 16 },
     'DTX1_ONEBITALPHA': { id: 20 },
-    'BGRA5551': { id: 21, converter: ImageData_To_BGRA5551, flags: TEXTURE_FLAGS.ONEBITALPHA },
+    'BGRA5551': { id: 21, converter: ImageData_To_BGRA5551, flags: TEXTURE_FLAGS.ONEBITALPHA, size: 16 },
     'UV88': { id: 22 },
     'UVWQ8888': { id: 23 },
     'RGBA16161616F': { id: 24 },
@@ -99,7 +99,7 @@ const RESOURCE_TAGS = {
  * First mipmap MUST have an image
  * If later mipmaps don't it will use the last image
  * @param {Image|Null[][]} images - Table of images ([mipmap][frames])
- * @param {{width: number, height: number, imageFormat: number|{ id: number, converter: function, flags: number }, autoMips: boolean, autoMipsMin: number, crc: boolean, downscaleAlias: boolean}}
+ * @param {{width: number, height: number, imageFormat: number|{ id: number, converter: function, flags: number, size: number }, autoMips: boolean, autoMipsMin: number, crc: boolean, downscaleAlias: boolean}}
  * @returns {Uint8Array} - VTF file
  */
 export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_FORMAT.RGBA8888, autoMips=true, autoMipsMin=16, crc=true, downscaleAlias=true } = {}) {
@@ -156,9 +156,17 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
 
 
 
+
+
+
     // Actual parsing
 
     const wr = new Writer();
+
+    // Estimate size for faster writing
+    let mipsSize = 0;
+    for(let i=0; i < mipmapCount; i++) mipsSize += (width / 2**i) * (height / 2**i) * (imageFormat.size / 8);
+    wr.extend(96 + mipsSize + 1024); // header size + mips size + some padding
 
     // Write a resource
     let resource_count = 0;
