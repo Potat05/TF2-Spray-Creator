@@ -20,3 +20,36 @@ body {
 
     border: dashed red;
 }
+
+#editor-images {
+    margin: 10px;
+    padding: 10px;
+
+    border: solid dimgray;
+}
+
+.editor-image-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    border: solid black;
+}
+
+.editor-image-buttons {
+    display: flex;
+    justify-content: space-around;
+}
+
+canvas {
+    image-rendering: pixelated;
+
+    background-image: url('../resource/transparency.png');
+    background-size: 20px 20px;
+    background-attachment: fixed;
+}
+
+
+#info {
+    text-align: center;
+}

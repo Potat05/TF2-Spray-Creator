@@ -18,17 +18,21 @@
 
     <div id="app">
 
-        <div id="file-input-container">
-            <input id="file-input" type="file" multiple>
-        </div>
-
         <div id="editor">
             EDITOR
             <br />
             <br />
-            <div id="editor-imagesmoothing" checked>
-                Image Smoothing: 
-                <input type="checkbox">
+            <div id="editor-imageSmoothing">
+                Editor Image Smoothing: 
+                <input type="checkbox" checked>
+            </div>
+            <div id="editor-sampling">
+                Sampling Method: 
+                <select>
+                    <option value="0x00000001">Point Sample (Use for pixel art)</option>
+                    <option value="0x00000002">Trilinear (May produce blurry image)</option>
+                    <option value="0x00000010" selected>Anisotropic (Usually best method)</option>
+                </select>
             </div>
             <div id="editor-crc">
                 Cyclic Redundancy Check: 
@@ -36,21 +40,28 @@
             </div>
             <div id="editor-resolution">
                 Resolution: 
-                <select>
-                    <option value="4">4x4</option>
-                    <option value="8">8x8</option>
-                    <option value="16">16x16</option>
-                    <option value="32">32x32</option>
-                    <option value="64">64x64</option>
-                    <option value="128">128x128</option>
-                    <option value="256">256x256</option>
-                    <option value="512" selected>512x512</option>
-                    <option value="1024">1024x1024</option>
+                <select data-type="width">
+                    <option value="32">32</option>
+                    <option value="64">64</option>
+                    <option value="128">128</option>
+                    <option value="256">256</option>
+                    <option value="512" selected>512</option>
+                    <option value="1024">1024</option>
+                </select>
+                x
+                <select data-type="height">
+                    <option value="32">32</option>
+                    <option value="64">64</option>
+                    <option value="128">128</option>
+                    <option value="256">256</option>
+                    <option value="512" selected>512</option>
+                    <option value="1020">1020</option>
+                    <option value="1024">1024</option>
                 </select>
             </div>
-            <div id="editor-generatemips">
-                Generate Mipmaps: 
-                <input type="checkbox" checked>
+            <div id="editor-generateThumbnail">
+                Generate Thumbnail: 
+                <input type="checkbox">
             </div>
             <div id="editor-format">
                 Format: 
@@ -61,9 +72,14 @@
                     <option value="5">I8 (Grayscale, no transparency)</option>
                     <option value="6">IA88 (Grayscale, full transparency)</option>
                     <option value="13" selected>DXT1 (Compressed, no transparency)</option>
+                    <!-- <option value="15">DXT5 (Compressed, smooth transparency)</option> -->
                     <option value="19">BGRA44444 (Reduced color, unsmooth transparency)</option>
                     <option value="21">BGRA5551 (Reduced color, on/off transparency)</option>
                 </select>
+            </div>
+            <div id="editor-images">
+                <div id="editor-images-list"></div>
+                <button id="editor-images-add">+</button>
             </div>
         </div>
 
@@ -72,9 +88,12 @@
         </div>
 
         <div id="info">
+            <br />
             Sprays wont display ingame if they're above 512kB
 			<br />
 			Sprays always get stretched to a 1:1 aspect ratio
+            <br />
+			All previews are actual views of compressed images.
         </div>
 
     </div>

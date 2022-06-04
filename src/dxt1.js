@@ -105,14 +105,14 @@ function evalColors(c0, c1) {
 function quantize5(x) {
     x = x < 0 ? 0 : x > 1 ? 1 : x;
     let q = (x * 31);
-    q += (x > midpoints5[q] ? 1 : 0);
+    q += (x > midpoints5[q]);
     return q;
 }
 
 function quantize6(x) {
     x = x < 0 ? 0 : x > 1 ? 1 : x;
     let q = (x * 63);
-    q += (x > midpoints6[q] ? 1 : 0);
+    q += (x > midpoints6[q]);
     return q;
 }
 
@@ -152,14 +152,12 @@ function matchColorsBlock(block, color) {
     return mask;
 }
 
-function optimizeColorsBlock(block) {
+function optimizeColorsBlock(block, iterPower=4) {
 
-    const nIterPower = 4;
-
+    // Get min/max/total for each channel
     let mu = new Uint32Array(3);
     let min = new Uint32Array(3);
     let max = new Uint32Array(3);
-
     for(let ch=0; ch < 3; ch++) {
         let muv = block[ch]; let minv = block[ch]; let maxv = block[ch];
         
@@ -175,8 +173,7 @@ function optimizeColorsBlock(block) {
     }
 
 
-    let cov = new Uint32Array(6);
-    let covf = new Float32Array(6);
+    let cov = new Float64Array(6);
 
     for(let i=0; i < 16; i++) {
         const r = block[i*4] - mu[0];
@@ -192,17 +189,17 @@ function optimizeColorsBlock(block) {
     }
 
     for(let i=0; i < 6; i++) {
-        covf[i] = cov[i] / 255;
+        cov[i] /= 255;
     }
 
     let vfr = (max[0] - min[0]);
     let vfg = (max[1] - min[1]);
     let vfb = (max[2] - min[2]);
 
-    for(let iter=0; iter < nIterPower; iter++) {
-        const r = vfr*covf[0] + vfg*covf[1] + vfb*covf[2];
-        const g = vfr*covf[1] + vfg*covf[3] + vfb*covf[4];
-        const b = vfr*covf[2] + vfg*covf[4] + vfb*covf[5];
+    for(let iter=0; iter < iterPower; iter++) {
+        const r = vfr*cov[0] + vfg*cov[1] + vfb*cov[2];
+        const g = vfr*cov[1] + vfg*cov[3] + vfb*cov[4];
+        const b = vfr*cov[2] + vfg*cov[4] + vfb*cov[5];
 
         vfr = r;
         vfg = g;
@@ -247,12 +244,10 @@ function optimizeColorsBlock(block) {
 
 }
 
+// This is broken!
 function refineBlock(block, oldMax, oldMin, mask) {
 
-    const w1Tab = new Uint32Array([3, 0, 2, 1]);
-    const prods = new Uint32Array([0x090000, 0x000900, 0x040102, 0x010402]);
-
-    let max = 0; let min = 0;
+    let max = 0x00000000; let min = 0x00000000;
 
     if((mask ^ (mask << 2)) < 4) {
         let r = 8; let b = 8; let g = 8;
@@ -272,8 +267,10 @@ function refineBlock(block, oldMax, oldMin, mask) {
         let at2_r = 0; let at2_g = 0; let at2_b = 0;
         let cm = mask;
         let akku = 0;
+        const w1Tab = new Uint8Array([3, 0, 2, 1]);
+        const prods = new Uint32Array([0x090000, 0x000900, 0x040102, 0x010402]);
         for(let i=0; i < 16; i++, cm >>= 2) {
-            const step = cm & 3;
+            const step = cm & 0b00000011;
             const w1 = w1Tab[step];
             const r = block[i*4];
             const g = block[i*4+1];
@@ -297,11 +294,11 @@ function refineBlock(block, oldMax, oldMin, mask) {
         const xy = akku & 0xFF;
 
         const f = 3 / 255 / (xx*yy - xy*xy);
-
+        
         max = quantize5((at1_r*yy - at2_r*xy) * f) << 11;
         max |= quantize6((at1_g*yy - at2_g*xy) * f) << 5;
         max |= quantize5((at1_b*yy - at2_b*xy) * f) << 0;
-
+        
         min = quantize5((at2_r*xx - at1_r*xy) * f) << 11;
         min |= quantize6((at2_g*xx - at1_g*xy) * f) << 5;
         min |= quantize5((at2_b*xx - at1_b*xy) * f) << 0;
@@ -314,7 +311,7 @@ function refineBlock(block, oldMax, oldMin, mask) {
     }
 }
 
-function compressColorBlock(block, refineCount=2) {
+function compressColorBlock(block, refineCount=2, iterPower) {
 
     let mask = 0x00000000;
 
@@ -331,7 +328,7 @@ function compressColorBlock(block, refineCount=2) {
         max = (OMatch5[r*2] << 11) | (OMatch6[g*2] << 5) | OMatch5[b*2];
         min = (OMatch5[r*2+1] << 11) | (OMatch6[g*2+1] << 5) | OMatch5[b*2+1];
     } else {
-        const data = optimizeColorsBlock(block, max, min);
+        const data = optimizeColorsBlock(block, iterPower);
         max = data.pmax;
         min = data.pmin;
 
@@ -394,15 +391,10 @@ function compressColorBlock(block, refineCount=2) {
  * @param {{refineCount: number, dither: boolean, alpha: boolean}}
  * @returns {Uint8Array}
  */
-export function ImageData_To_DXT1(img, { refineCount=3, dither=false, alpha=false } = {}) {
+export function ImageData_To_DXT1(img, { refineCount=0, iterPower=0, dither=false, alpha=false } = {}) {
 
     const convert = new Uint8Array(Math.ceil((img.width * img.height) / 2));
 
-    if(img.width < 16 || img.height < 16) {
-        console.error(`Error while converting to DTX1\nImageData is too small! <16`);
-        return convert;
-    }
-    
     if(img.width % 4 != 0 || img.height % 4 != 0) {
         console.error(`Error while converting to DTX1\nImageData width or height is not a multiple of 4!`);
         return convert;
@@ -422,7 +414,8 @@ export function ImageData_To_DXT1(img, { refineCount=3, dither=false, alpha=fals
             block.set(img.data.slice(pos+stride*2, pos+stride*2+16), 32);
             block.set(img.data.slice(pos+stride*3, pos+stride*3+16), 48);
             
-            convert.set(compressColorBlock(block, refineCount), convertPos);
+            const comp = compressColorBlock(block, refineCount, iterPower);
+            convert.set(comp, convertPos);
 
             convertPos += 8;
         }
@@ -431,3 +424,4 @@ export function ImageData_To_DXT1(img, { refineCount=3, dither=false, alpha=fals
     return convert;
 
 }
+

@@ -11,6 +11,7 @@ import { loadImageData } from './useful.js';
 import { Writer } from './writer.js';
 import { ImageData_To_RGBA8888, ImageData_To_RGB888, ImageData_To_RGB565, ImageData_To_I8, ImageData_To_IA88, ImageData_To_BGRA4444, ImageData_To_BGRA5551 } from './basicformats.js';
 import { ImageData_To_DXT1 } from './dxt1.js';
+import { View_RGBA8888, View_RGB888, View_RGB565, View_I8, View_IA88, View_DXT1, View_BGRA4444, View_BGRA5551 } from './viewer.js';
 
 const SIGNATURE = 0x00465456;
 const VERSION = [7, 4]; // Max version TF2 can support
@@ -53,28 +54,28 @@ const TEXTURE_FLAGS = {
 
 export const IMAGE_FORMAT = {
     'NONE': { id: -1 },
-    'RGBA8888': { id: 0, converter: ImageData_To_RGBA8888, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 32 },
+    'RGBA8888': { id: 0, converter: ImageData_To_RGBA8888, viewer: View_RGBA8888, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 32 },
     'ABGR8888': { id: 1 },
-    'RGB888': { id: 2, converter: ImageData_To_RGB888, flags: 0, size: 24 },
+    'RGB888': { id: 2, converter: ImageData_To_RGB888, viewer: View_RGB888, flags: 0, size: 24 },
     'BGR888': { id: 3 },
-    'RGB565': { id: 4, converter: ImageData_To_RGB565, flags: 0, size: 16 },
-    'I8': { id: 5, converter: ImageData_To_I8, flags: 0, size: 8 },
-    'IA88': { id: 6, converter: ImageData_To_IA88, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 16 },
+    'RGB565': { id: 4, converter: ImageData_To_RGB565, viewer: View_RGB565, flags: 0, size: 16 },
+    'I8': { id: 5, converter: ImageData_To_I8, viewer: View_I8, flags: 0, size: 8 },
+    'IA88': { id: 6, converter: ImageData_To_IA88, viewer: View_IA88, flags: TEXTURE_FLAGS.EIGHTBITALPHA, size: 16 },
     'P8': { id: 7 },
     'A8': { id: 8 },
     'RGB888_BLUESCREEN': { id: 9 },
     'BGR888_BLUESCREEN': { id: 10 },
     'ARGB8888': { id: 11 },
     'BGRA8888': { id: 12 },
-    'DXT1': { id: 13, converter: ImageData_To_DXT1, flags: TEXTURE_FLAGS.dxt, size: 4 },
+    'DXT1': { id: 13, converter: ImageData_To_DXT1, viewer: View_DXT1, flags: 0, size: 4 },
     'DXT3': { id: 14 },
-    'DXT5': { id: 15 },
+    'DXT5': { id: 15, converter: ImageData_To_DXT5, flags: 0, size: 8 },
     'BGRX8888': { id: 16 },
     'BGR565': { id: 17 },
     'BGRX5551': { id: 18 },
-    'BGRA4444': { id: 19, converter: ImageData_To_BGRA4444, flags: 0, size: 16 },
+    'BGRA4444': { id: 19, converter: ImageData_To_BGRA4444, viewer: View_BGRA4444, flags: 0, size: 16 },
     'DTX1_ONEBITALPHA': { id: 20 },
-    'BGRA5551': { id: 21, converter: ImageData_To_BGRA5551, flags: TEXTURE_FLAGS.ONEBITALPHA, size: 16 },
+    'BGRA5551': { id: 21, converter: ImageData_To_BGRA5551, viewer: View_BGRA5551, flags: TEXTURE_FLAGS.ONEBITALPHA, size: 16 },
     'UV88': { id: 22 },
     'UVWQ8888': { id: 23 },
     'RGBA16161616F': { id: 24 },
@@ -99,12 +100,17 @@ const RESOURCE_TAGS = {
  * First mipmap MUST have an image
  * If later mipmaps don't it will use the last image
  * @param {Image|Null[][]} images - Table of images ([mipmap][frames])
- * @param {{width: number, height: number, imageFormat: number|{ id: number, converter: function, flags: number, size: number }, autoMips: boolean, autoMipsMin: number, crc: boolean, downscaleAlias: boolean}}
+ * @param {{width: number, height: number, flags: number imageFormat: number|{ id: number, converter: function, flags: number, size: number }, autoMips: boolean, crc: boolean, downscaleAlias: boolean, generateThumbnail: boolean, views: HTMLCanvasElement}}
  * @returns {Uint8Array} - VTF file
  */
-export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_FORMAT.RGBA8888, autoMips=true, autoMipsMin=16, crc=true, downscaleAlias=true } = {}) {
+export function parseVTF(images=[], { width=512, height=512, flags=0, imageFormat=IMAGE_FORMAT.RGBA8888, autoMips=true, crc=true, downscaleAlias=true, generateThumbnail=true, views=[] } = {}) {
 
     // Alot of random checks.
+
+    if(width % 4 != 0 || height % 4 != 0) {
+        console.error(`Error while parsing VTF\nImage width and height must be a multiple of 4!`);
+        return null;
+    }
 
     // Check if no images
     if(images.length == 0) {
@@ -128,9 +134,9 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
     // Get mipmap & frame count
     let mipmapCount = images.length;
     if(autoMips) {
-        // Increase mipmap count till it hits the min size
+        // Increase mipmap count until it hits the min size
         mipmapCount = 1;
-        while((width/2**mipmapCount > autoMipsMin) && (width/2**mipmapCount > autoMipsMin)) mipmapCount++;
+        while((width/2**mipmapCount > 4) && (height/2**mipmapCount > 4)) mipmapCount++;
     }
     const frameCount = images[0].length;
 
@@ -190,7 +196,7 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
     wr.write_short(width); // Width
     wr.write_short(height); // Height
     // Flags
-    wr.write_int(imageFormat.flags | (mipmapCount == 1 ? TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD : 0));
+    wr.write_int(flags | imageFormat.flags | (mipmapCount == 1 ? TEXTURE_FLAGS.NOMIP | TEXTURE_FLAGS.NOLOD : 0));
     wr.write_short(frameCount); // Num frames
     wr.write_short(0); // First frame
     wr.write_bytes([0, 0, 0, 0]); // Padding
@@ -199,9 +205,9 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
     wr.write_bytes([0, 0, 128, 63]); // Bumpmap scale
     wr.write_int(imageFormat.id); // High res image format
     wr.write_byte(mipmapCount); // Mipmap count
-    wr.write_int(0xFFFFFFFF); // Low res image format
-    wr.write_byte(0); // Low res width
-    wr.write_byte(0); // Low res height
+    wr.write_int(IMAGE_FORMAT.DXT1.id); // Low res image format
+    wr.write_byte(16); // Low res width
+    wr.write_byte(16); // Low res height
     wr.write_short(1); // Depth
     wr.write_bytes([0, 0, 0]);  // Padding
     resource_index = wr.pointer;
@@ -211,6 +217,7 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
     // Resources dictionairy
     const resource_highres = write_resource(RESOURCE_TAGS.HIGHRES);
     if(crc) var resource_crc = write_resource(RESOURCE_TAGS.CRC, 0x02);
+    if(generateThumbnail) var resource_thumbnail = write_resource(RESOURCE_TAGS.LOWRES)
 
     // Set count resource byte
     wr.set_int(resource_index, resource_count);
@@ -220,12 +227,21 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
 
     const header_end = wr.pointer;
 
+    // Write thumbnail
+    if(generateThumbnail) {
+        resource_thumbnail();
+        const imageData = loadImageData(images[0][0], 16, 16, true);
+        wr.write_bytes(IMAGE_FORMAT.DXT1.converter(imageData));
+    }
+    
+
     // Write all bitmaps
     resource_highres();
     for(let i=mipmapCount-1; i >= 0; i--) {
         const mipWidth = width / 2**i;
         const mipHeight = height / 2**i;
         for(let j=0; j < frameCount; j++) {
+            let imageData;
             if(!images[i] || !images[i][j]) {
                 let img = null;
                 for(let k=i; i >= 0; k--) {
@@ -234,11 +250,14 @@ export function parseVTF(images=[], { width=512, height=512, imageFormat=IMAGE_F
                         break;
                     }
                 }
-                const imageData = loadImageData(img, mipWidth, mipHeight, downscaleAlias);
-                wr.write_bytes(imageFormat.converter(imageData));
+                imageData = loadImageData(img, mipWidth, mipHeight, downscaleAlias);
             } else {
-                const imageData = loadImageData(images[i][j], mipWidth, mipHeight, downscaleAlias);
-                wr.write_bytes(imageFormat.converter(imageData));
+                imageData = loadImageData(images[i][j], mipWidth, mipHeight, downscaleAlias);
+            }
+            const convert = imageFormat.converter(imageData);
+            wr.write_bytes(convert);
+            if(views[i] && j == 0) {
+                imageFormat.viewer(views[i], imageData.width, imageData.height, convert);
             }
         }
     }

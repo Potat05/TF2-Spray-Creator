@@ -1,6 +1,5 @@
 
 
-
 /**
  * Await image load
  * @param {String} src 
@@ -31,6 +30,10 @@ export function loadImageData(img, width=1024, height=1024, antialias=true) {
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
+export function parseHTML(str) {
+    return new DOMParser().parseFromString(str, 'text/html').body.firstChild;
+}
+
 
 export function convertFileSizeBytes(size=0) {
     const i = Math.floor(Math.log(size) / Math.log(1024));
@@ -40,4 +43,12 @@ export function convertFileSizeBytes(size=0) {
 
 export function lerp(v0=0, v1=1, t=0.5) {
     return (1 - t) * v0 + t * v1;
+}
+
+/**
+ * Get file data as Uint8Array
+ * @param {File} file 
+ */
+async function fileData(file) {
+    return new Uint8Array(await (await fetch(file)).arrayBuffer());
 }
