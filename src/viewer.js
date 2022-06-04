@@ -257,9 +257,9 @@ export function View_BGRA4444(canvas, width, height, data) {
 
     for(let i=0; i < width*height; i++) {
         img.data[i*4] = (data[i*2+1] & 0b00001111) << 4;
-        img.data[i*4+1] = (data[i*2] & 0b11110000);
-        img.data[i*4+2] = (data[i*2] & 0b00001111) << 4;;
-        img.data[i*4+3] = (data[i*2+1] & 0b11110000);
+        img.data[i*4+1] = data[i*2] & 0b11110000;
+        img.data[i*4+2] = (data[i*2] & 0b00001111) << 4;
+        img.data[i*4+3] = (data[i*2+1] & 0b11110000) * 1.0625;
     }
 
     ctx.putImageData(img, 0, 0);
