@@ -69,7 +69,7 @@ export const IMAGE_FORMAT = {
     'BGRA8888': { id: 12 },
     'DXT1': { id: 13, converter: ImageData_To_DXT1, viewer: View_DXT1, flags: 0, size: 4 },
     'DXT3': { id: 14 },
-    'DXT5': { id: 15, converter: ImageData_To_DXT5, flags: 0, size: 8 },
+    'DXT5': { id: 15 },
     'BGRX8888': { id: 16 },
     'BGR565': { id: 17 },
     'BGRX5551': { id: 18 },
